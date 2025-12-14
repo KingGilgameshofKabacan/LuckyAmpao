@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lucky Ampao Hunt: Find the 500!</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background: radial-gradient(circle at center, #fff1f2 0%, #ffe4e6 100%);
+            overflow-x: hidden;
+            /* Prevent scrolling bounce on mobile */
+            overscroll-behavior: none; 
+        }
+
+        h1, h2, .quirky-font {
+            font-family: 'Fredoka One', cursive;
+        }
+
+        /* Ampao Container Perspective */
+        .scene {
+            perspective: 1000px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+
+        /* The Ampao (Envelope) */
+        .ampao {
+            width: 120px; /* Slightly smaller to fit 10 */
+            height: 180px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            cursor: pointer;
+        }
+
+        /* Responsive sizing */
+        @media (min-width: 768px) {
+            .ampao {
+                width: 140px;
+                height: 210px;
+            }
+        }
+
+        .ampao:hover {
+            transform: translateY(-10px) rotate(2deg);
+        }
+
+        .ampao.opened {
+            transform: rotateY(180deg) scale(1.05);
+            pointer-events: none;
+        }
+
+        .ampao.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+            filter: grayscale(0.8);
+        }
+
+        /* Front of Envelope */
+        .ampao-front {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            border-radius: 10px;
+            border: 3px solid #fca5a5;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 15px -3px rgba(220, 38, 38, 0.3);
+            z-index: 2;
+        }
+
+        /* Gold decoration */
+        .gold-seal {
+            width: 45px;
+            height: 45px;
+            background: radial-gradient(circle, #fcd34d 0%, #d97706 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #92400e;
+            border: 2px solid #fef3c7;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .pattern {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0.1;
+            background-image: radial-gradient(#fcd34d 2px, transparent 2px);
+            background-size: 15px 15px;
+        }
+
+        /* Back/Inside of Envelope (The Reveal) */
+        .ampao-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            border-radius: 10px;
+            backface-visibility: hidden;
+            transform: rotateY(180deg);
+            border: 3px solid #fcd34d;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        /* Money Bill Style */
+        .money-bill {
+            width: 85%;
+            height: 80%;
+            background: #d1fae5;
+            border: 2px dashed #059669;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #065f46;
+            transform: translateY(100%);
+            transition: transform 0.5s 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* Different colors for different amounts */
+        .bill-low { background: #f3f4f6; border-color: #9ca3af; color: #4b5563; } /* Gray for 5/10 */
+        .bill-mid { background: #dbeafe; border-color: #2563eb; color: #1e40af; } /* Blue for 20/50 */
+        .bill-high { background: #d1fae5; border-color: #059669; color: #065f46; } /* Green for 500 */
+
+        .ampao.opened .money-bill {
+            transform: translateY(0);
+        }
+
+        /* Modal & Effects */
+        #celebration-overlay {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        .floater { animation: float 6s ease-in-out infinite; }
+        .floater-delay { animation: float 7s ease-in-out 1s infinite; }
+
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-8 text-gray-800 relative selection:bg-red-200">
+
+    <!-- Background Decoration -->
+    <div class="fixed top-10 left-10 text-4xl opacity-20 floater pointer-events-none">🧧</div>
+    <div class="fixed bottom-20 right-10 text-6xl opacity-20 floater-delay pointer-events-none">💰</div>
+    <div class="fixed top-1/2 left-4 text-3xl opacity-20 animate-bounce pointer-events-none">✨</div>
+    <div class="fixed top-20 right-1/4 text-5xl opacity-10 rotate-12 pointer-events-none">🎐</div>
+
+    <!-- Header -->
+    <div class="text-center z-10 mb-8 px-4">
+        <h1 class="text-4xl md:text-5xl text-red-600 mb-2 drop-shadow-sm">Find the 500!</h1>
+        <p class="text-base md:text-lg text-gray-600 font-bold max-w-md mx-auto">
+            There are 10 ampaos. Only <span class="text-red-600 underline decoration-wavy">ONE</span> has ₱500.<br>
+            <span class="text-xs font-normal text-gray-500">(Others have ₱5, ₱10, ₱20, or ₱50)</span>
+        </p>
+    </div>
+
+    <!-- Game Grid -->
+    <div class="container max-w-5xl px-4 mb-12">
+        <!-- Rendered by JS -->
+        <div id="game-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-4 gap-y-8 justify-items-center">
+            <!-- Ampaos inserted here -->
+        </div>
+    </div>
+
+    <!-- Celebration Modal -->
+    <div id="celebration-overlay" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-500">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-sm w-full text-center transform scale-90 transition-transform duration-300 relative overflow-hidden" id="modal-content">
+            <!-- Background glow for modal -->
+            <div id="modal-bg-glow" class="absolute inset-0 opacity-10"></div>
+
+            <div class="relative z-10">
+                <div class="text-6xl mb-4 animate-bounce" id="emoji-result">🎉</div>
+                <h2 class="text-2xl md:text-3xl text-red-500 mb-2 font-black" id="result-title">Congratulations!</h2>
+                <p class="text-gray-500 mb-6 font-medium" id="quirky-message">You found some lunch money!</p>
+                
+                <div class="bg-gray-50 rounded-xl p-6 mb-6 border-2 border-gray-100 dashed">
+                    <span class="block text-xs text-gray-400 uppercase font-bold tracking-wider">You Opened</span>
+                    <span class="text-5xl font-black text-gray-800 drop-shadow-sm" id="final-amount">₱0</span>
+                </div>
+
+                <div class="flex gap-2">
+                    <button onclick="resetGame()" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-xl transition-all hover:shadow-lg transform active:scale-95">
+                        Try Again 🔄
+                    </button>
+                    <button onclick="revealAll()" id="reveal-btn" class="flex-1 bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold py-3 px-4 rounded-xl transition-all hover:shadow-lg transform active:scale-95">
+                        Reveal All 👀
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game Configuration
+        const prizePool = [500, 50, 50, 20, 20, 20, 10, 10, 5, 5]; // 10 Items total
+        let currentShuffledPrizes = [];
+        let gameActive = true;
+        
+        // Chinese characters for decoration
+        const seals = ['福', '吉', '财', '运', '乐', '寿', '喜', '旺', '春', '爱'];
+
+        const messages = {
+            5: { text: "Oof. That's... shiny? Maybe buy a candy? 🍬", emoji: "🥺", title: "Better luck next time!" },
+            10: { text: "Enough for a small snack... very small. 🐜", emoji: "🤏", title: "It's something!" },
+            20: { text: "Hey, Cornetto money! Stay cool. 🍦", emoji: "😎", title: "Not bad!" },
+            50: { text: "Whoa, burger money! Nice pick. 🍔", emoji: "😋", title: "Solid Win!" },
+            500: { text: "JACKPOT!! DINNER IS ON YOU! 💸🚨", emoji: "🤑", title: "YOU FOUND IT!" }
+        };
+
+        const grid = document.getElementById('game-grid');
+
+        function initGame() {
+            // Shuffle prizes
+            currentShuffledPrizes = [...prizePool].sort(() => Math.random() - 0.5);
+            
+            // Randomize seal characters too for visual variety
+            const shuffledSeals = [...seals].sort(() => Math.random() - 0.5);
+
+            gameActive = true;
+            grid.innerHTML = ''; // Clear grid
+
+            // Hide modal
+            const overlay = document.getElementById('celebration-overlay');
+            overlay.classList.add('hidden');
+            overlay.classList.remove('opacity-100');
+            document.getElementById('modal-content').classList.remove('scale-100');
+
+            // Generate HTML for 10 Ampaos
+            currentShuffledPrizes.forEach((amount, index) => {
+                
+                // Determine bill style class
+                let billClass = 'bill-low';
+                if (amount >= 20) billClass = 'bill-mid';
+                if (amount === 500) billClass = 'bill-high';
+
+                const scene = document.createElement('div');
+                scene.className = 'scene';
+                
+                scene.innerHTML = `
+                    <div class="ampao group" id="ampao-${index}" onclick="openAmpao(${index}, ${amount})">
+                        <div class="ampao-front">
+                            <div class="pattern"></div>
+                            <div class="gold-seal group-hover:scale-110 transition-transform">${shuffledSeals[index]}</div>
+                        </div>
+                        <div class="ampao-back">
+                            <div class="money-bill ${billClass}">
+                                <span class="text-[10px] font-bold uppercase tracking-widest mb-1 opacity-60">Peso</span>
+                                <span class="text-2xl font-black">₱${amount}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(scene);
+            });
+        }
+
+        function openAmpao(index, amount) {
+            if (!gameActive) return;
+            gameActive = false; // Stop further clicks
+
+            const selectedAmpao = document.getElementById(`ampao-${index}`);
+            selectedAmpao.classList.add('opened');
+
+            // Dim other ampaos to focus on the winner
+            document.querySelectorAll('.ampao').forEach((el, idx) => {
+                if (idx !== index) el.classList.add('disabled');
+            });
+
+            // Trigger effects
+            if (amount === 500) {
+                triggerConfetti(true); // Big confetti
+            } else {
+                triggerConfetti(false); // Small confetti
+            }
+
+            // Show result modal after delay
+            setTimeout(() => {
+                showResult(amount);
+            }, 800);
+        }
+
+        function showResult(amount) {
+            const overlay = document.getElementById('celebration-overlay');
+            const modalContent = document.getElementById('modal-content');
+            
+            document.getElementById('final-amount').innerText = "₱" + amount;
+            document.getElementById('quirky-message').innerText = messages[amount].text;
+            document.getElementById('emoji-result').innerText = messages[amount].emoji;
+            document.getElementById('result-title').innerText = messages[amount].title;
+
+            // Update modal color based on win
+            const modalTitle = document.getElementById('result-title');
+            const modalGlow = document.getElementById('modal-bg-glow');
+            
+            if (amount === 500) {
+                modalTitle.className = "text-3xl text-green-600 mb-2 font-black";
+                modalGlow.className = "absolute inset-0 opacity-20 bg-green-400";
+            } else if (amount <= 10) {
+                modalTitle.className = "text-3xl text-gray-500 mb-2 font-black";
+                modalGlow.className = "absolute inset-0 opacity-20 bg-gray-400";
+            } else {
+                modalTitle.className = "text-3xl text-red-500 mb-2 font-black";
+                modalGlow.className = "absolute inset-0 opacity-20 bg-red-400";
+            }
+
+            // Show modal
+            overlay.classList.remove('hidden');
+            document.getElementById('reveal-btn').style.display = 'inline-block'; // Reset button visibility
+            
+            requestAnimationFrame(() => {
+                overlay.classList.add('opacity-100');
+                modalContent.classList.add('scale-100');
+            });
+        }
+
+        function revealAll() {
+            // Hide modal slightly but keep it readable or just close it to show grid?
+            // Let's close modal to show the grid reveal
+            const overlay = document.getElementById('celebration-overlay');
+            overlay.classList.remove('opacity-100');
+            document.getElementById('modal-content').classList.remove('scale-100');
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+            }, 300);
+
+            // Open all remaining envelopes
+            document.querySelectorAll('.ampao').forEach(el => {
+                el.classList.remove('disabled');
+                el.classList.add('opened');
+            });
+            
+            // Re-show modal after a few seconds so they can reset? 
+            // Or just add a floating "Reset" button.
+            // Let's change the header text to a reset button.
+            const h1 = document.querySelector('h1');
+            h1.innerHTML = `<button onclick="initGame()" class="bg-red-600 text-white px-6 py-2 rounded-full text-2xl hover:scale-105 transition-transform shadow-lg">Play Again? 🔄</button>`;
+        }
+
+        function resetGame() {
+            // Restore header if it was changed by revealAll
+            document.querySelector('h1').innerText = "Find the 500!";
+            initGame();
+        }
+
+        // Particle System
+        function triggerConfetti(isJackpot) {
+            const canvas = document.createElement('canvas');
+            canvas.style.position = 'fixed';
+            canvas.style.inset = '0';
+            canvas.style.pointerEvents = 'none';
+            canvas.style.zIndex = '100';
+            document.body.appendChild(canvas);
+            
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const particles = [];
+            const particleCount = isJackpot ? 300 : 80; // More confetti for jackpot
+            const colors = isJackpot 
+                ? ['#22c55e', '#16a34a', '#fcd34d', '#fbbf24'] // Greens and Golds
+                : ['#ef4444', '#fcd34d', '#94a3b8']; // Red, Gold, Gray
+
+            for (let i = 0; i < particleCount; i++) {
+                particles.push({
+                    x: window.innerWidth / 2,
+                    y: window.innerHeight / 2,
+                    vx: (Math.random() - 0.5) * (isJackpot ? 35 : 20),
+                    vy: (Math.random() - 0.5) * (isJackpot ? 35 : 20) - 5,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    size: Math.random() * 8 + 4,
+                    rotation: Math.random() * 360,
+                    rotationSpeed: (Math.random() - 0.5) * 10,
+                    gravity: 0.6,
+                    drag: 0.95
+                });
+            }
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                let active = false;
+
+                particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += p.gravity;
+                    p.vx *= p.drag;
+                    p.rotation += p.rotationSpeed;
+
+                    if (p.y < canvas.height + 20) {
+                        active = true;
+                        ctx.save();
+                        ctx.translate(p.x, p.y);
+                        ctx.rotate(p.rotation * Math.PI / 180);
+                        ctx.fillStyle = p.color;
+                        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                        ctx.restore();
+                    }
+                });
+
+                if (active) {
+                    requestAnimationFrame(animate);
+                } else {
+                    document.body.removeChild(canvas);
+                }
+            }
+            animate();
+        }
+
+        // Start
+        initGame();
+
+    </script>
+</body>
+</html>
